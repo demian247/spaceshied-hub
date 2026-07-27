@@ -1,0 +1,48 @@
+name: Keep Supabase awake
+
+# Supabase 무료 플랜은 7일간 활동이 없으면 프로젝트가 일시정지됩니다.
+# 이 워크플로가 주 3회(월·수·금) DB에 쿼리를 보내 활동을 발생시켜 정지를 막습니다.
+# (주 3회 = 최소 요구치 2회보다 여유 있게. GitHub 스케줄이 가끔 지연·누락돼도 7일 안에 반드시 실행되도록.)
+
+on:
+  schedule:
+    - cron: "0 6 * * 1,3,5"   # 매주 월·수·금 06:00 UTC
+  workflow_dispatch:           # 수동 실행 버튼 (테스트용)
+
+permissions:
+  contents: write              # 하트비트 커밋용
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ping Supabase (DB 쿼리로 활동 발생)
+        run: |
+          URL="https://tnuzqrqxptxrfozzjjek.supabase.co"
+          # publishable(공개용) 키 — 프론트 코드에도 들어있는 공개 키라 유출 아님.
+          KEY="sb_publishable_BSLM7lCKgpZWRtweb687og_F1RqFAYN"
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "$URL/rest/v1/products?select=id&limit=1" \
+            -H "apikey: $KEY")
+          echo "Supabase 응답: HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::Supabase ping 실패 (HTTP $code) — 프로젝트가 이미 정지됐거나 키/URL 문제일 수 있음"
+            exit 1
+          fi
+
+      - name: Heartbeat commit (스케줄 워크플로 60일 자동비활성화 방지)
+        run: |
+          # GitHub 은 60일간 저장소 활동(커밋)이 없으면 스케줄 워크플로를 끕니다.
+          # 매 실행마다 타임스탬프를 커밋해 워크플로 자체가 계속 살아있게 합니다.
+          date -u +"%Y-%m-%dT%H:%M:%SZ  (Supabase keep-alive ping OK)" > keepalive.txt
+          git config user.name "keepalive-bot"
+          git config user.email "actions@github.com"
+          git add keepalive.txt
+          git commit -m "keepalive $(date -u +%F) [skip ci]" || { echo "변경 없음 — 커밋 생략"; exit 0; }
+          git push
