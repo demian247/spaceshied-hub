@@ -6,7 +6,8 @@ name: Keep Supabase awake
 
 on:
   schedule:
-    - cron: "0 6 * * *"        # 매일 06:00 UTC (한국시간 15:00)
+    - cron: "0 3 * * *"        # 매일 03:00 UTC (한국시간 12:00)
+    - cron: "0 15 * * *"       # 매일 15:00 UTC (한국시간 24:00) — 하루 2회로 누락 대비
   workflow_dispatch:           # 수동 실행 버튼 (테스트용)
 
 permissions:
@@ -39,10 +40,11 @@ jobs:
       - name: Heartbeat commit (스케줄 워크플로 60일 자동비활성화 방지)
         run: |
           # GitHub 은 60일간 저장소 활동(커밋)이 없으면 스케줄 워크플로를 끕니다.
-          # 매 실행마다 타임스탬프를 커밋해 워크플로 자체가 계속 살아있게 합니다.
-          date -u +"%Y-%m-%dT%H:%M:%SZ  (Supabase keep-alive ping OK)" > keepalive.txt
+          # 날짜만 기록 → 하루 2회 실행돼도 커밋은 하루 1회만 발생(내용 안 바뀌면 커밋 생략).
+          date -u +"%Y-%m-%d  (Supabase keep-alive OK)" > keepalive.txt
           git config user.name "keepalive-bot"
           git config user.email "actions@github.com"
           git add keepalive.txt
-          git commit -m "keepalive $(date -u +%F) [skip ci]" || { echo "변경 없음 — 커밋 생략"; exit 0; }
+          git diff --cached --quiet && { echo "오늘 이미 하트비트 있음 — 커밋 생략"; exit 0; }
+          git commit -m "keepalive $(date -u +%F) [skip ci]"
           git push
