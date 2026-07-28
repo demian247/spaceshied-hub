@@ -10,7 +10,7 @@
 
 ## ⚙️ keep-supabase-awake 워크플로 (건드리지 말 것)
 `.github/workflows/keep-supabase-awake.yml` = Supabase 무료 플랜 7일 미사용 정지를 막는 스케줄 잡.
-주 3회 DB에 ping + `keepalive.txt` 하트비트 커밋(GitHub이 60일 방치 스케줄 워크플로를 끄는 것 방지).
+매일 DB에 ping + `keepalive.txt` 하트비트 커밋(GitHub이 60일 방치 스케줄 워크플로를 끄는 것 방지).
 `keepalive.txt` 는 그 하트비트 파일이니 지우지 마세요. 유료 전환 시엔 이 워크플로 삭제해도 됨.
 
 ## 전체 맥락
